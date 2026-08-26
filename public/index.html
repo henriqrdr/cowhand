@@ -467,10 +467,7 @@ function flushPublish(){
         renderApp();
       });
     } else if (code === 'auth') {
-      READONLY = true;
-      setSyncBadge('readonly');
-      showToast('Sessão não autenticada — recarregue a página e faça login novamente.', true);
-      renderApp();
+      location.href = '/login';
     } else {
       setSyncBadge('pending');
       showToast('Não foi possível salvar agora. Toque em "tentar novamente".', true);
@@ -538,7 +535,7 @@ function renderShell(){
   document.getElementById('mobiletabs').innerHTML = TABS.map(function(t){
     return '<button class="' + (t.id === ACTIVE_TAB ? 'active' : '') + '" data-act="nav" data-tab="' + t.id + '" type="button">' + t.short + '</button>';
   }).join('');
-  document.getElementById('sidebar-foot').innerHTML = 'Henrique &amp; Carol<br>Orçamento familiar compartilhado';
+  document.getElementById('sidebar-foot').innerHTML = 'Henrique &amp; Carol<br>Orçamento familiar compartilhado<br><a href="/logout" style="color:inherit">Sair</a>';
   var mi = document.getElementById('month-input');
   if (mi.value !== MONTH) mi.value = MONTH;
   renderSyncBadge();
@@ -809,12 +806,15 @@ function renderAjustes(){
         '<div class="field"><label>Carol</label><input type="number" step="0.01" min="0" data-act="renda-field" data-field="carol" value="' + (STATE.renda.carol != null ? STATE.renda.carol : '') + '"' + (READONLY?' disabled':'') + '></div>' +
       '</div>' +
     '</div>' +
-    '<div class="card" style="max-width:480px"><div class="section-title">Aparência</div>' +
+    '<div class="card" style="max-width:480px;margin-bottom:16px"><div class="section-title">Aparência</div>' +
       '<div class="field"><label>Tema</label><select id="theme-select">' +
         '<option value="system"' + (THEME==='system'?' selected':'') + '>Automático (sistema)</option>' +
         '<option value="light"' + (THEME==='light'?' selected':'') + '>Claro</option>' +
         '<option value="dark"' + (THEME==='dark'?' selected':'') + '>Escuro</option>' +
       '</select></div>' +
+    '</div>' +
+    '<div class="card" style="max-width:480px"><div class="section-title">Conta</div>' +
+      '<a href="/logout" class="btn btn-sm">Sair</a>' +
     '</div>';
   document.getElementById('theme-select').addEventListener('change', function(e){
     THEME = e.target.value; lsSet('ofc_theme', THEME); applyTheme(THEME);
@@ -895,8 +895,8 @@ function init(){
     setSyncBadge('saved');
     setInterval(pollState, 6000);
   }).catch(function(e){
+    if (e && e.code === 'auth') { location.href = '/login'; return; }
     console.error('cowhand init failed:', e);
-    if (e && e.code === 'auth') { READONLY = true; }
     document.getElementById('app').innerHTML = '<div class="empty"><div class="big">⚠️</div>Não foi possível carregar os dados. Recarregue a página.</div>';
     setSyncBadge('pending');
   });

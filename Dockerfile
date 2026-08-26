@@ -5,7 +5,7 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install --omit=dev
 
-COPY server.js seed_data.json taxonomy.json ./
+COPY server.js login.html seed_data.json taxonomy.json ./
 COPY public ./public
 
 RUN addgroup -S app && adduser -S app -G app \

@@ -24,10 +24,18 @@ def wait_for_server(timeout=10):
 def check_no_auth_is_rejected():
     try:
         urllib.request.urlopen(f"{BASE_URL}/api/state", timeout=2)
-        raise AssertionError("expected 401 without credentials")
+        raise AssertionError("expected 401 without a session")
     except urllib.error.HTTPError as e:
         assert e.code == 401, e.code
-    print("OK: /api/state requires auth (401 without credentials)")
+    print("OK: /api/state requires a session (401 without one)")
+
+
+async def login(page, username, password):
+    await page.goto(f"{BASE_URL}/login")
+    await page.fill('input[name="username"]', username)
+    await page.fill('input[name="password"]', password)
+    await page.click('button[type="submit"]')
+    await page.wait_for_load_state('networkidle')
 
 
 async def fill_tx_form(page, data):
@@ -59,12 +67,27 @@ async def main():
         errors = []
         async with async_playwright() as p:
             browser = await p.chromium.launch()
-            context = await browser.new_context(http_credentials={"username": USER, "password": PASS})
+            context = await browser.new_context()
             page = await context.new_page()
             page.on("pageerror", lambda e: errors.append(str(e)))
             page.on("console", lambda m: errors.append("console.error: " + m.text) if m.type == "error" else None)
 
+            # wrong credentials: bounced back to /login with an error banner, no session set
+            await login(page, USER, "senha-errada")
+            assert "/login" in page.url, page.url
+            login_page_text = await page.inner_text("body")
+            assert "incorret" in login_page_text.lower(), login_page_text
+            print("OK: wrong credentials rejected, redirected back to /login with an error message")
+
+            # unauthenticated navigation to the app itself bounces to /login too
             await page.goto(BASE_URL)
+            assert "/login" in page.url, page.url
+            print("OK: visiting the app without a session redirects to /login")
+
+            await login(page, USER, PASS)
+            assert "/login" not in page.url, page.url
+            print("OK: correct credentials log in and land on the app")
+
             await page.wait_for_function("window.__STATE__ !== null", timeout=5000)
             state0 = await page.evaluate("window.__STATE__")
             assert len(state0["recorrentes"]) == 27, state0
@@ -171,15 +194,24 @@ async def main():
             print("OK: dark/light theme tokens differ:", bg_light, "vs", bg_dark)
             await page.emulate_media(color_scheme='light')
 
-            # two-person sync: a second browser context (Carol) sees Henrique's edits via polling
-            context2 = await browser.new_context(http_credentials={"username": USER, "password": PASS})
+            # two-person sync: a second browser context (Carol), with her own independent
+            # session cookie, sees Henrique's edits via polling
+            context2 = await browser.new_context()
             page2 = await context2.new_page()
-            await page2.goto(BASE_URL)
+            await login(page2, USER, PASS)
             await page2.wait_for_function("window.__STATE__ !== null", timeout=5000)
             state2 = await page2.evaluate("window.__STATE__")
             assert len(state2["transacoes"]) == 4
-            print("OK: second browser context (simulating Carol) sees the same synced state")
+            print("OK: second browser context (simulating Carol, own session) sees the same synced state")
             await context2.close()
+
+            # logout: session is destroyed server-side, not just the cookie cleared client-side
+            await page.click('a[href="/logout"]')
+            await page.wait_for_load_state('networkidle')
+            assert "/login" in page.url, page.url
+            await page.goto(BASE_URL)
+            assert "/login" in page.url, page.url
+            print("OK: logout destroys the session — revisiting the app redirects to /login again")
 
             real_errors = [e for e in errors if 'net::ERR' not in e]
             assert not real_errors, real_errors
