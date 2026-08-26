@@ -82,10 +82,64 @@ linha dele na tabela `sessions`, sem afetar o outro).
    `.env.example`) — **obrigatórias**, o servidor recusa iniciar sem elas.
 4. Garanta que o volume `/app/data` está persistente (já configurado no
    `docker-compose.yml`) — é onde fica o banco SQLite com todos os lançamentos.
-5. Exponha a porta 3000 (ou configure `PORT` e ajuste o proxy do Coolify). O
-   `Dockerfile` já define `NODE_ENV=production`, o que ativa o cookie `Secure` — só
-   funciona se o Coolify (ou o proxy na frente) servir a aplicação via HTTPS, que é o
-   padrão dele.
+5. Exponha a porta 3000 (ou configure `PORT` e ajuste o proxy do Coolify).
+
+## Deploy sem Coolify (docker compose direto)
+
+Se o host não tiver como rodar o instalador do Coolify (ex: sistemas com raiz somente-
+leitura, como NAS baseados em imagem imutável — foi o caso ao testar num ZimaOS), dá
+pra pular o Coolify e usar o `docker-compose.yml` do repo diretamente:
+
+```bash
+git clone https://github.com/henriqrdr/cowhand.git
+cd cowhand
+printf 'COWHAND_USER=seu-usuario\nCOWHAND_PASS=sua-senha\n' > .env
+docker compose up -d --build
+```
+
+Se a porta 3000 já estiver em uso por outro serviço no host, edite `ports:` em
+`docker-compose.yml` (ex: `"3600:3000"`) antes de subir.
+
+## Backup
+
+O único dado que precisa de backup é o SQLite (`/app/data/cowhand.sqlite` dentro do
+container, num volume Docker nomeado — o código-fonte já está versionado no GitHub).
+
+Script de exemplo (`backup.sh`, ajuste os caminhos pro seu host):
+
+```bash
+#!/bin/bash
+set -euo pipefail
+SRC_DB="$(docker volume inspect cowhand_cowhand_data --format '{{.Mountpoint}}')/cowhand.sqlite"
+BACKUP_DIR="./backups"
+DATE="$(date +%Y%m%d-%H%M%S)"
+
+mkdir -p "$BACKUP_DIR"
+sqlite3 "$SRC_DB" ".backup '$BACKUP_DIR/cowhand-$DATE.sqlite'"
+gzip "$BACKUP_DIR/cowhand-$DATE.sqlite"
+find "$BACKUP_DIR" -name 'cowhand-*.sqlite.gz' -mtime +30 -delete
+```
+
+Usa `sqlite3 .backup` (não `cp` do arquivo bruto) — é seguro rodar com o app no ar,
+mesmo em modo WAL, porque faz uma cópia consistente via a própria engine do SQLite, sem
+risco de pegar um arquivo pela metade de uma escrita. Agende via `crontab -e`:
+
+```
+30 3 * * * /bin/bash /caminho/para/backup.sh >> /caminho/para/backups/backup.log 2>&1
+```
+
+Vale manter uma cópia fora do próprio host (outro disco, nuvem, etc.) — um backup que
+mora só na mesma máquina que ele protege não sobrevive a uma falha de disco.
+
+**Restaurar:** pare o container, substitua o arquivo do volume pelo backup
+descompactado, suba de novo:
+
+```bash
+docker compose stop cowhand
+gunzip -k cowhand-AAAAMMDD-HHMMSS.sqlite.gz
+cp cowhand-AAAAMMDD-HHMMSS.sqlite "$(docker volume inspect cowhand_cowhand_data --format '{{.Mountpoint}}')/cowhand.sqlite"
+docker compose start cowhand
+```
 
 ## Estrutura dos dados
 
