@@ -771,13 +771,13 @@ function renderLancamentos(){
     return '<tr>' +
       '<td>' + fmtDate(t.data) + '</td>' +
       '<td>' + escapeHtml(t.descricao) + '<div style="font-size:11.5px;color:var(--text-muted)">' + escapeHtml(t.categoria) + (t.subcategoria ? ' · ' + escapeHtml(t.subcategoria) : '') + '</div></td>' +
-      '<td><span class="badge badge-' + (t.responsavel || '').toLowerCase() + '">' + escapeHtml(t.responsavel || '-') + '</span></td>' +
+      '<td><span class="badge badge-' + escapeHtml((t.responsavel || '').toLowerCase()) + '">' + escapeHtml(t.responsavel || '-') + '</span></td>' +
       '<td>' + escapeHtml(t.formaPagamento || '-') + '</td>' +
-      '<td><span class="badge badge-' + (t.status || '').toLowerCase() + '">' + escapeHtml(t.status || '-') + '</span></td>' +
+      '<td><span class="badge badge-' + escapeHtml((t.status || '').toLowerCase()) + '">' + escapeHtml(t.status || '-') + '</span></td>' +
       '<td class="num">' + fmtMoney(t.valor) + '</td>' +
       '<td>' +
-        '<button class="btn btn-ghost btn-sm" data-act="tx-edit" data-id="' + t.id + '" type="button">Editar</button>' +
-        '<button class="btn btn-ghost btn-sm critical-text" data-act="tx-del" data-id="' + t.id + '" type="button">Excluir</button>' +
+        '<button class="btn btn-ghost btn-sm" data-act="tx-edit" data-id="' + escapeHtml(t.id) + '" type="button">Editar</button>' +
+        '<button class="btn btn-ghost btn-sm critical-text" data-act="tx-del" data-id="' + escapeHtml(t.id) + '" type="button">Excluir</button>' +
       '</td>' +
     '</tr>';
   }).join('') : '<tr><td colspan="7"><div class="empty">Nenhum lançamento encontrado para este mês/filtro.</div></td></tr>';
@@ -864,11 +864,11 @@ function renderRecorrentes(){
     var diffCls = diff > 0.005 ? 'critical-text' : 'good-text';
     return '<tr>' +
       '<td>' + escapeHtml(rec.item) + '<div style="font-size:11.5px;color:var(--text-muted)">' + escapeHtml(rec.categoria) + ' · ' + escapeHtml(rec.subcategoria) + '</div></td>' +
-      '<td><span class="badge badge-' + (rec.responsavel || '').toLowerCase() + '">' + escapeHtml(rec.responsavel || '-') + '</span></td>' +
+      '<td><span class="badge badge-' + escapeHtml((rec.responsavel || '').toLowerCase()) + '">' + escapeHtml(rec.responsavel || '-') + '</span></td>' +
       '<td>' + escapeHtml(rec.forma || '-') + '</td>' +
       '<td class="num">' + (READONLY ?
         fmtMoney(esperado) :
-        '<input type="number" step="0.01" min="0" class="num" style="width:110px" data-act="rec-esperado" data-id="' + rec.id + '" value="' + esperado + '">') + '</td>' +
+        '<input type="number" step="0.01" min="0" class="num" style="width:110px" data-act="rec-esperado" data-id="' + escapeHtml(rec.id) + '" value="' + esperado + '">') + '</td>' +
       '<td class="num">' + fmtMoney(real) + '</td>' +
       '<td class="num ' + diffCls + '">' + (diff > 0 ? '+' : '') + fmtMoney(diff) + '</td>' +
     '</tr>';
@@ -899,12 +899,12 @@ function renderMetas(){
       '</div>' +
       '<div class="progress" style="margin:10px 0 14px"><span style="width:' + pct + '%"></span></div>' +
       '<div class="field-row">' +
-        '<div class="field"><label>Valor atual</label><input type="number" step="0.01" min="0" data-act="meta-field" data-field="valorAtual" data-id="' + m.id + '" value="' + (m.valorAtual != null ? m.valorAtual : '') + '"' + (READONLY?' disabled':'') + '></div>' +
-        '<div class="field"><label>Valor alvo</label><input type="number" step="0.01" min="0" data-act="meta-field" data-field="valorAlvo" data-id="' + m.id + '" value="' + (m.valorAlvo != null ? m.valorAlvo : '') + '"' + (READONLY?' disabled':'') + '></div>' +
+        '<div class="field"><label>Valor atual</label><input type="number" step="0.01" min="0" data-act="meta-field" data-field="valorAtual" data-id="' + escapeHtml(m.id) + '" value="' + (m.valorAtual != null ? m.valorAtual : '') + '"' + (READONLY?' disabled':'') + '></div>' +
+        '<div class="field"><label>Valor alvo</label><input type="number" step="0.01" min="0" data-act="meta-field" data-field="valorAlvo" data-id="' + escapeHtml(m.id) + '" value="' + (m.valorAlvo != null ? m.valorAlvo : '') + '"' + (READONLY?' disabled':'') + '></div>' +
       '</div>' +
       '<div class="field-row" style="margin-top:12px">' +
-        '<div class="field"><label>Prazo</label><input type="date" data-act="meta-field" data-field="prazo" data-id="' + m.id + '" value="' + escapeHtml(m.prazo || '') + '"' + (READONLY?' disabled':'') + '></div>' +
-        '<div class="field"><label>Contribuição planejada/mês</label><input type="number" step="0.01" min="0" data-act="meta-field" data-field="contribPlanejada" data-id="' + m.id + '" value="' + (m.contribPlanejada != null ? m.contribPlanejada : '') + '"' + (READONLY?' disabled':'') + '></div>' +
+        '<div class="field"><label>Prazo</label><input type="date" data-act="meta-field" data-field="prazo" data-id="' + escapeHtml(m.id) + '" value="' + escapeHtml(m.prazo || '') + '"' + (READONLY?' disabled':'') + '></div>' +
+        '<div class="field"><label>Contribuição planejada/mês</label><input type="number" step="0.01" min="0" data-act="meta-field" data-field="contribPlanejada" data-id="' + escapeHtml(m.id) + '" value="' + (m.contribPlanejada != null ? m.contribPlanejada : '') + '"' + (READONLY?' disabled':'') + '></div>' +
       '</div>' +
       '<div style="display:flex;gap:22px;flex-wrap:wrap;margin-top:14px;font-size:12.5px;color:var(--text-2)">' +
         '<span>Contribuição no mês: <b class="mono">' + fmtMoney(contrib) + '</b></span>' +
@@ -1087,8 +1087,16 @@ def build_final(core_src):
 final_html = build_final(CORE)
 
 OUT_DIR = os.path.dirname(os.path.abspath(__file__))
-OUT_PATH = os.path.join(OUT_DIR, 'index.html')
-with open(OUT_PATH, 'w', encoding='utf-8') as f:
+
+# index.html lives in public/, which is the ONLY directory server.js serves statically —
+# keeps the SQLite database, server.js and other project files out of reach of
+# express.static (see server.js PUBLIC_DIR).
+PUBLIC_DIR = os.path.join(OUT_DIR, 'public')
+os.makedirs(PUBLIC_DIR, exist_ok=True)
+OUT_PATH = os.path.join(PUBLIC_DIR, 'index.html')
+# newline='\n': force LF endings even on Windows. server.js computes a CSP hash over the
+# inline <script> content — it must match the bytes the browser actually parses.
+with open(OUT_PATH, 'w', encoding='utf-8', newline='\n') as f:
     f.write(final_html)
 print("Written", OUT_PATH, "length:", len(final_html))
 
@@ -1096,3 +1104,17 @@ SEED_PATH = os.path.join(OUT_DIR, 'seed_data.json')
 with open(SEED_PATH, 'w', encoding='utf-8') as f:
     json.dump(INITIAL_STATE, f, ensure_ascii=False, indent=2)
 print("Written", SEED_PATH)
+
+# taxonomy.json: single source of truth for the enums server.js uses to validate
+# PUT /api/state, kept in sync with the constants baked into the client JS above.
+TAXONOMY_PATH = os.path.join(OUT_DIR, 'taxonomy.json')
+with open(TAXONOMY_PATH, 'w', encoding='utf-8') as f:
+    json.dump({
+        'CATEGORIAS': CATEGORIAS,
+        'SUBCATEGORIAS': SUBCATEGORIAS,
+        'RESPONSAVEL_OPTS': RESPONSAVEL_OPTS,
+        'TIPO_OPTS': TIPO_OPTS,
+        'FORMA_PGTO_OPTS': FORMA_PGTO_OPTS,
+        'STATUS_OPTS': STATUS_OPTS,
+    }, f, ensure_ascii=False, indent=2)
+print("Written", TAXONOMY_PATH)

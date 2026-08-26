@@ -7,17 +7,24 @@ entre todos os dispositivos.
 
 ## Arquitetura
 
-- `build_app.py` — script Python que gera `index.html` a partir dos dados de taxonomia
-  (categorias, subcategorias, opções de formulário) e do template HTML/CSS/JS embutido
-  no próprio script. Rode `python build_app.py` para regenerar `index.html` e
-  `seed_data.json` depois de editar os dados ou o template. **Não edite `index.html`
-  diretamente** — a próxima geração sobrescreve.
+- `build_app.py` — script Python que gera `public/index.html`, `seed_data.json` e
+  `taxonomy.json` a partir dos dados de taxonomia (categorias, subcategorias, opções de
+  formulário) e do template HTML/CSS/JS embutido no próprio script. Rode
+  `python build_app.py` depois de editar os dados ou o template. **Não edite
+  `public/index.html` diretamente** — a próxima geração sobrescreve.
+- `public/index.html` — o único diretório servido estaticamente por `server.js`.
+  Mantê-lo separado da raiz do projeto impede que o banco de dados, `server.js` ou
+  outros arquivos internos sejam servidos por engano.
 - `seed_data.json` — estado inicial (renda, as 27 despesas recorrentes, as 3 metas),
-  gerado junto com `index.html`. Usado para semear o banco na primeira execução do
-  servidor.
-- `server.js` — servidor Express que serve `index.html` estático, expõe a API
-  `/api/state` (GET/PUT) e persiste o estado em SQLite (via `node:sqlite`, nativo do
-  Node ≥ 22.5, sem dependência de compilação). Protegido por HTTP Basic Auth.
+  usado para semear o banco na primeira execução do servidor.
+- `taxonomy.json` — os mesmos enums (categorias, formas de pagamento, etc.) usados pelo
+  cliente, lidos por `server.js` para **validar** cada `PUT /api/state` e recusar
+  valores fora da lista permitida.
+- `server.js` — servidor Express: serve `public/`, expõe a API `/api/state` (GET/PUT),
+  persiste o estado em SQLite (`node:sqlite`, nativo do Node ≥ 22.5) e aplica: HTTP
+  Basic Auth, rate limiting no login, validação de schema/enum em cada escrita,
+  cabeçalhos de segurança (`helmet`, CSP com hash do script inline) e bloqueio de
+  requisições PUT de origem cruzada (CSRF).
 - `test_app.py` — suíte de testes end-to-end (Playwright).
 
 O app **não roda mais dentro do Artifact da Claude** (não há mais auto-publicação
