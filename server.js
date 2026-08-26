@@ -14,7 +14,6 @@ const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'data', 'cowhand.sql
 const USER = process.env.COWHAND_USER;
 const PASS = process.env.COWHAND_PASS;
 const PUBLIC_DIR = path.join(__dirname, 'public');
-const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 const SESSION_COOKIE = 'cowhand_sid';
 const SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
@@ -86,20 +85,26 @@ function isValidSession(token) {
   return !!row && row.expires_at > new Date().toISOString();
 }
 
-function setSessionCookie(res, token) {
+// Secure is decided per-request (req.secure, via `trust proxy`) rather than a single
+// NODE_ENV-wide flag: this app is reachable both directly over plain HTTP on the LAN and
+// through a TLS-terminating tunnel/proxy publicly. A Secure cookie set while answering a
+// plain-HTTP request is silently dropped by the browser (RFC 6265) — login would appear to
+// "not work" on the LAN even though the server did everything right. Mirroring whichever
+// protocol *this* request actually arrived over keeps both paths working at once.
+function setSessionCookie(req, res, token) {
   res.setHeader('Set-Cookie', cookie.serialize(SESSION_COOKIE, token, {
     httpOnly: true,
-    secure: IS_PRODUCTION,
+    secure: req.secure,
     sameSite: 'strict',
     path: '/',
     maxAge: SESSION_MAX_AGE_MS / 1000,
   }));
 }
 
-function clearSessionCookie(res) {
+function clearSessionCookie(req, res) {
   res.setHeader('Set-Cookie', cookie.serialize(SESSION_COOKIE, '', {
     httpOnly: true,
-    secure: IS_PRODUCTION,
+    secure: req.secure,
     sameSite: 'strict',
     path: '/',
     maxAge: 0,
@@ -231,7 +236,9 @@ function inlineScriptHash() {
 
 const app = express();
 app.disable('x-powered-by');
-app.set('trust proxy', 1); // behind Coolify's reverse proxy; needed for correct rate-limit keying + Secure cookies
+// behind a reverse proxy (Cloudflare Tunnel, or any other) that terminates TLS; needed for
+// req.secure / X-Forwarded-Proto to reflect the client's real protocol — see setSessionCookie.
+app.set('trust proxy', 1);
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -251,6 +258,10 @@ app.use(helmet({
       objectSrc: ["'none'"],
       baseUri: ["'none'"],
       frameAncestors: ["'none'"],
+      // this app is reached both over plain HTTP (LAN) and HTTPS (via tunnel/proxy) — forcing
+      // every subresource to upgrade to HTTPS breaks the LAN path outright (nothing there
+      // speaks TLS), so explicitly cancel helmet's default inclusion of this directive.
+      upgradeInsecureRequests: null,
     },
   },
 }));
@@ -276,7 +287,7 @@ app.post('/api/login', loginLimiter, (req, res) => {
   if (isPlainString(username, 200) && isPlainString(password, 200) &&
       timingSafeCredentialEqual(username, USER) && timingSafeCredentialEqual(password, PASS)) {
     const { token } = createSession();
-    setSessionCookie(res, token);
+    setSessionCookie(req, res, token);
     return res.redirect(303, '/');
   }
   res.redirect(303, '/login?error=1');
@@ -284,7 +295,7 @@ app.post('/api/login', loginLimiter, (req, res) => {
 
 app.get('/logout', (req, res) => {
   destroySession(getSessionToken(req));
-  clearSessionCookie(res);
+  clearSessionCookie(req, res);
   res.redirect(302, '/login');
 });
 

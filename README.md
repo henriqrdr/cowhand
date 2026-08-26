@@ -60,9 +60,12 @@ Login por sessão (cookie `HttpOnly` + `SameSite=Strict`), não HTTP Basic Auth:
   redirecionados para `/login` e chamadas de API recebem `401`.
 - `GET /logout` apaga a sessão no servidor (não só o cookie no navegador) e redireciona
   para `/login`.
-- `Secure` só é aplicado com `NODE_ENV=production` (o Dockerfile já define isso) — em
-  desenvolvimento local via HTTP simples, o cookie funciona sem `Secure` para não exigir
-  HTTPS local.
+- `Secure` é decidido por requisição (`req.secure`, via `trust proxy`), não por
+  `NODE_ENV` fixo — o app funciona tanto acessado direto por HTTP na rede local quanto
+  por HTTPS através de um proxy/túnel (ex: Cloudflare Tunnel) na frente, ao mesmo tempo, sem
+  precisar de configuração diferente para cada caso. Um cookie `Secure` recebido numa
+  resposta HTTP simples seria descartado silenciosamente pelo navegador (RFC 6265) —
+  por isso não dá pra fixar isso em produção, precisa refletir a requisição real.
 - 10 tentativas de login por minuto por IP; depois disso, `429`.
 
 Como só existem dois usuários (Henrique e Carol) compartilhando as mesmas credenciais,
