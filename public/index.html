@@ -4,74 +4,75 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Orçamento Henrique &amp; Carol</title>
+<link rel="icon" type="image/png" href="/logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Public+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <style>
 :root {
   color-scheme: light;
-  --bg: #f7f6f2;
+  --bg: #faf6ee;
   --surface: #ffffff;
-  --surface-2: #f1efe9;
-  --text: #14181a;
-  --text-2: #52514e;
-  --text-muted: #898781;
-  --line: #e1e0d9;
-  --accent: #146356;
-  --accent-strong: #0e4a40;
-  --accent-soft: #dceeea;
+  --surface-2: #f3ecdb;
+  --text: #1c2836;
+  --text-2: #55524a;
+  --text-muted: #948d7c;
+  --line: #e6dcc7;
+  --accent: #21426b;
+  --accent-strong: #152c47;
+  --accent-soft: #dfeaf5;
   --accent-ink: #ffffff;
-  --good: #0ca30c;
+  --good: #2f8f52;
   --critical: #c8373a;
-  --warning: #a8710a;
-  --cat-1: #2a78d6;
-  --cat-2: #c65a26;
-  --cat-3: #1a9c6c;
-  --shadow: 0 1px 2px rgba(20,24,26,0.06), 0 4px 16px rgba(20,24,26,0.05);
+  --warning: #b8791f;
+  --cat-1: #a97c2e;
+  --cat-2: #d9722e;
+  --cat-3: #1f8f5f;
+  --shadow: 0 1px 2px rgba(28,24,12,0.06), 0 4px 16px rgba(28,24,12,0.05);
   --radius: 10px;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --bg: #0d0d0d;
-    --surface: #1a1a19;
-    --surface-2: #212320;
-    --text: #f5f4f0;
-    --text-2: #c3c2b7;
-    --text-muted: #8f8d86;
-    --line: #2c2c2a;
-    --accent: #4fbfa8;
-    --accent-strong: #7fd9c4;
-    --accent-soft: #16302b;
-    --accent-ink: #06201b;
-    --good: #2fbf3f;
+    --bg: #12151a;
+    --surface: #1b1f26;
+    --surface-2: #232830;
+    --text: #f3efe4;
+    --text-2: #c7c2b0;
+    --text-muted: #938f82;
+    --line: #2e333c;
+    --accent: #6c9bce;
+    --accent-strong: #93bce3;
+    --accent-soft: #1c2c3e;
+    --accent-ink: #0b1622;
+    --good: #4bbf70;
     --critical: #e6716f;
     --warning: #d9a441;
-    --cat-1: #3987e5;
-    --cat-2: #d97b45;
-    --cat-3: #33b688;
+    --cat-1: #d1a75f;
+    --cat-2: #e8935a;
+    --cat-3: #3fb389;
     --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 4px 20px rgba(0,0,0,0.35);
   }
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #0d0d0d;
-  --surface: #1a1a19;
-  --surface-2: #212320;
-  --text: #f5f4f0;
-  --text-2: #c3c2b7;
-  --text-muted: #8f8d86;
-  --line: #2c2c2a;
-  --accent: #4fbfa8;
-  --accent-strong: #7fd9c4;
-  --accent-soft: #16302b;
-  --accent-ink: #06201b;
-  --good: #2fbf3f;
+  --bg: #12151a;
+  --surface: #1b1f26;
+  --surface-2: #232830;
+  --text: #f3efe4;
+  --text-2: #c7c2b0;
+  --text-muted: #938f82;
+  --line: #2e333c;
+  --accent: #6c9bce;
+  --accent-strong: #93bce3;
+  --accent-soft: #1c2c3e;
+  --accent-ink: #0b1622;
+  --good: #4bbf70;
   --critical: #e6716f;
   --warning: #d9a441;
-  --cat-1: #3987e5;
-  --cat-2: #d97b45;
-  --cat-3: #33b688;
+  --cat-1: #d1a75f;
+  --cat-2: #e8935a;
+  --cat-3: #3fb389;
   --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 4px 20px rgba(0,0,0,0.35);
 }
 
@@ -110,12 +111,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
   height: 100vh;
 }
 .brand { font-weight: 800; font-size: 18px; letter-spacing: -0.01em; display: flex; align-items: center; gap: 10px; }
-.brand-mark {
-  width: 34px; height: 34px; border-radius: 9px;
-  background: linear-gradient(155deg, var(--accent), var(--accent-strong));
-  display: flex; align-items: center; justify-content: center;
-  color: var(--accent-ink); font-weight: 800; font-size: 15px; flex: none;
-}
+.brand-mark { width: 34px; height: 34px; flex: none; display: block; }
 .navlist { display: flex; flex-direction: column; gap: 2px; }
 .navlink {
   display: flex; align-items: center; gap: 11px;
@@ -274,7 +270,7 @@ textarea { resize: vertical; min-height: 40px; }
 <body>
 <div id="shell">
   <nav id="sidebar">
-    <div class="brand"><div class="brand-mark">H&amp;C</div>Orçamento</div>
+    <div class="brand"><img class="brand-mark" src="/logo.png" alt="" width="34" height="34">Orçamento</div>
     <div class="navlist" id="navlist-desktop"></div>
     <div class="sidebar-foot" id="sidebar-foot"></div>
   </nav>

@@ -267,6 +267,10 @@ app.get('/login', (req, res) => {
   res.type('html').send(req.query.error ? LOGIN_HTML_ERROR : LOGIN_HTML.replace('<!--ERROR-->', ''));
 });
 
+// the login page needs the logo before the visitor has a session, so it can't go through
+// the general express.static(PUBLIC_DIR) below (that's gated by requireSession)
+app.get('/logo.png', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'logo.png')));
+
 app.post('/api/login', loginLimiter, (req, res) => {
   const { username, password } = req.body || {};
   if (isPlainString(username, 200) && isPlainString(password, 200) &&

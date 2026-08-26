@@ -22,6 +22,9 @@ entre todos os dispositivos.
   valores fora da lista permitida.
 - `login.html` — página de login própria (formulário HTML puro, sem JS), servida em
   `/login`. Fica fora de `public/` — só é acessível através da rota `/login`.
+- `assets/cowhand-logo.png` — logo oficial do app (fonte da verdade). `build_app.py`
+  copia esse arquivo para `public/logo.png` a cada build; é dele que vêm as cores da
+  paleta (`--accent` navy, `--cat-1` dourado, `--cat-2` laranja).
 - `server.js` — servidor Express: serve `public/`, expõe a API `/api/state` (GET/PUT),
   persiste o estado em SQLite (`node:sqlite`, nativo do Node ≥ 22.5) e aplica: login com
   sessão por cookie (`HttpOnly`, `Secure` em produção, `SameSite=Strict` — ver seção

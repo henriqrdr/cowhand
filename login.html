@@ -4,36 +4,37 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Entrar — Orçamento Henrique &amp; Carol</title>
+<link rel="icon" type="image/png" href="/logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@700;800&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root {
   color-scheme: light;
-  --bg: #f7f6f2;
+  --bg: #faf6ee;
   --surface: #ffffff;
-  --text: #14181a;
-  --text-muted: #898781;
-  --line: #e1e0d9;
-  --accent: #146356;
-  --accent-strong: #0e4a40;
+  --text: #1c2836;
+  --text-muted: #948d7c;
+  --line: #e6dcc7;
+  --accent: #21426b;
+  --accent-strong: #152c47;
   --accent-ink: #ffffff;
   --critical: #c8373a;
   --critical-soft: #fbe9e9;
-  --shadow: 0 1px 2px rgba(20,24,26,0.06), 0 4px 16px rgba(20,24,26,0.05);
+  --shadow: 0 1px 2px rgba(28,24,12,0.06), 0 4px 16px rgba(28,24,12,0.05);
   --radius: 12px;
 }
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
-    --bg: #0d0d0d;
-    --surface: #1a1a19;
-    --text: #f5f4f0;
-    --text-muted: #8f8d86;
-    --line: #2c2c2a;
-    --accent: #4fbfa8;
-    --accent-strong: #7fd9c4;
-    --accent-ink: #06201b;
+    --bg: #12151a;
+    --surface: #1b1f26;
+    --text: #f3efe4;
+    --text-muted: #938f82;
+    --line: #2e333c;
+    --accent: #6c9bce;
+    --accent-strong: #93bce3;
+    --accent-ink: #0b1622;
     --critical: #e6716f;
     --critical-soft: #2a1414;
     --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 4px 20px rgba(0,0,0,0.35);
@@ -54,13 +55,7 @@ body {
   box-shadow: var(--shadow); padding: 32px 28px;
 }
 .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; }
-.brand-mark {
-  width: 36px; height: 36px; border-radius: 10px;
-  background: linear-gradient(155deg, var(--accent), var(--accent-strong));
-  display: flex; align-items: center; justify-content: center;
-  color: var(--accent-ink); font-weight: 800; font-size: 15px; flex: none;
-  font-family: "Sora", sans-serif;
-}
+.brand-mark { width: 40px; height: 40px; flex: none; display: block; }
 h1 { font-family: "Sora", sans-serif; font-size: 18px; margin: 0; }
 .sub { color: var(--text-muted); font-size: 13px; margin: 2px 0 0; }
 .field { display: flex; flex-direction: column; gap: 6px; margin-top: 18px; }
@@ -84,7 +79,7 @@ button:hover { background: var(--accent-strong); }
 </head>
 <body>
 <div class="card">
-  <div class="brand"><div class="brand-mark">H&amp;C</div><div><h1>Orçamento</h1><p class="sub">Henrique &amp; Carol</p></div></div>
+  <div class="brand"><img class="brand-mark" src="/logo.png" alt="" width="40" height="40"><div><h1>Orçamento</h1><p class="sub">Henrique &amp; Carol</p></div></div>
   <!--ERROR-->
   <form method="POST" action="/api/login">
     <div class="field"><label for="username">Usuário</label><input type="text" id="username" name="username" autocomplete="username" required autofocus></div>
