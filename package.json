@@ -1,0 +1,17 @@
+{
+  "name": "cowhand",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Orçamento familiar compartilhado (Henrique & Carol) — self-hosted",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "build": "python build_app.py"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "dependencies": {
+    "express": "^4.21.0"
+  }
+}

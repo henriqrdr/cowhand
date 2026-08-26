@@ -1,41 +1,60 @@
 # cowhand — Orçamento Familiar (Henrique & Carol)
 
 App web de orçamento familiar compartilhado: lançamentos, despesas recorrentes/cartão,
-metas e um dashboard, tudo em uma única página HTML autocontida (sem build step, sem
-dependências de servidor).
+metas e um dashboard. Frontend em uma única página HTML estática (sem build step no
+navegador), com um backend simples (Node + SQLite) que guarda e sincroniza os dados
+entre todos os dispositivos.
 
-## Arquivos
+## Arquitetura
 
-- `build_app.py` — script Python que gera `index.html` a partir dos dados (categorias,
-  despesas recorrentes, metas) e do template HTML/CSS/JS embutido no próprio script.
-  Rode `python3 build_app.py` para regenerar o `index.html` depois de editar os dados
-  ou o template.
-- `index.html` — o app final, pronto para abrir no navegador ou hospedar em qualquer
-  servidor de arquivo estático.
-- `test_app.py` — suíte de testes end-to-end (Playwright) que valida o app: estado
-  inicial, cálculos do dashboard, lançamentos, despesas recorrentes, metas, layout
-  mobile, tema claro/escuro e o mecanismo de auto-publicação. Rode com
-  `pip install playwright && playwright install chromium && python3 test_app.py`.
+- `build_app.py` — script Python que gera `index.html` a partir dos dados de taxonomia
+  (categorias, subcategorias, opções de formulário) e do template HTML/CSS/JS embutido
+  no próprio script. Rode `python build_app.py` para regenerar `index.html` e
+  `seed_data.json` depois de editar os dados ou o template. **Não edite `index.html`
+  diretamente** — a próxima geração sobrescreve.
+- `seed_data.json` — estado inicial (renda, as 27 despesas recorrentes, as 3 metas),
+  gerado junto com `index.html`. Usado para semear o banco na primeira execução do
+  servidor.
+- `server.js` — servidor Express que serve `index.html` estático, expõe a API
+  `/api/state` (GET/PUT) e persiste o estado em SQLite (via `node:sqlite`, nativo do
+  Node ≥ 22.5, sem dependência de compilação). Protegido por HTTP Basic Auth.
+- `test_app.py` — suíte de testes end-to-end (Playwright).
 
-## ⚠️ Importante sobre sincronização entre dispositivos/pessoas
+O app **não roda mais dentro do Artifact da Claude** (não há mais auto-publicação
+"quine"). O `index.html` é 100% estático — todo o estado (lançamentos, recorrentes,
+metas, renda) fica no servidor, buscado via `GET /api/state` e salvo via
+`PUT /api/state` (com controle de versão otimista: se dois salvamentos colidirem, o
+navegador que perder recebe a versão vencedora automaticamente). O app também faz
+polling a cada 6s para pegar alterações feitas pela outra pessoa.
 
-Este `index.html` foi construído para rodar dentro do visualizador de Artifacts da
-Claude, que expõe uma API (`window.claude.use('artifact')`) usada pelo app para salvar
-e sincronizar automaticamente os dados entre todas as pessoas com o link.
+## Rodando localmente
 
-Se você hospedar este `index.html` em qualquer outro lugar (GitHub Pages, um servidor
-próprio, Coolify, etc.), essa API não existe — o app continua funcionando
-normalmente na tela (adicionar/editar lançamentos, ver dashboard, etc.), mas **cada
-navegador fica com sua própria cópia dos dados em memória, que se perde ao recarregar
-a página** e não é compartilhada entre pessoas ou dispositivos.
+```bash
+npm install
+COWHAND_USER=henrique COWHAND_PASS=escolha-uma-senha node server.js
+```
 
-Para usar esse app como "sistema compartilhado de verdade" fora do ambiente Claude, é
-necessário adicionar um backend próprio (uma API simples + banco de dados, por exemplo)
-que substitua essa camada de sincronização. Se quiser, posso ajudar a construir esse
-backend para rodar junto no Coolify.
+Abra `http://localhost:3000` — o navegador vai pedir usuário/senha (HTTP Basic Auth).
+
+## Deploy no Coolify
+
+1. Suba este repositório para o GitHub (`git push`).
+2. No Coolify, crie uma nova aplicação apontando para o repositório — ele detecta o
+   `Dockerfile` (ou use o `docker-compose.yml` incluso) automaticamente.
+3. Defina as variáveis de ambiente `COWHAND_USER` e `COWHAND_PASS` (veja
+   `.env.example`) — **obrigatórias**, o servidor recusa iniciar sem elas.
+4. Garanta que o volume `/app/data` está persistente (já configurado no
+   `docker-compose.yml`) — é onde fica o banco SQLite com todos os lançamentos.
+5. Exponha a porta 3000 (ou configure `PORT` e ajuste o proxy do Coolify).
+
+Como só existem dois usuários (Henrique e Carol) compartilhando as mesmas credenciais
+de Basic Auth, não há sistema de contas/permissões — é a forma mais simples possível
+de manter o app privado sem expor os dados publicamente.
 
 ## Estrutura dos dados
 
 Categorias, subcategorias e as 27 despesas recorrentes/cartão estão definidas no topo
 de `build_app.py` (`CATEGORIAS`, `SUBCATEGORIAS`, `RECORRENTES`, `METAS`,
-`INITIAL_STATE`). Edite esses valores e rode o script de novo para atualizar o app.
+`INITIAL_STATE`). Editar esses valores só afeta o **estado inicial** (semeadura do
+banco na primeira execução) — depois disso, os dados reais vivem no SQLite do servidor,
+não no código.

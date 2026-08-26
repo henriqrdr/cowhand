@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import json, re, sys
+import json, os, sys
 
 # =====================================================================================
 # INITIAL DATA (seeded from the couple's real spreadsheet + card statement)
@@ -417,34 +417,11 @@ APP_JS = r'''
 (function(){
 "use strict";
 
-/* ---------- self-publish plumbing (validated pattern) ---------- */
-var LT = String.fromCharCode(60);
-var TAG_CASES = ['script', 'Script', 'SCRIPT'];
-function escapeScriptClose(s){
-  for (var i = 0; i < TAG_CASES.length; i++) {
-    s = s.split(LT + '/' + TAG_CASES[i]).join(LT + '\\' + '/' + TAG_CASES[i]);
-  }
-  return s;
-}
-function unescapeScriptClose(s){
-  for (var i = 0; i < TAG_CASES.length; i++) {
-    s = s.split(LT + '\\' + '/' + TAG_CASES[i]).join(LT + '/' + TAG_CASES[i]);
-  }
-  return s;
-}
-var stateEl = document.getElementById('app-state');
-var STATE = JSON.parse(unescapeScriptClose(stateEl.textContent));
-
-function buildPublishHtml(newState){
-  var raw = document.getElementById('tpl').textContent;
-  var trueText = unescapeScriptClose(raw);
-  var withSelf = trueText.replace('__TPL_SELF__', raw);
-  var stateJsonEscaped = escapeScriptClose(JSON.stringify(newState));
-  var full = withSelf.replace('__APP_STATE_JSON__', stateJsonEscaped);
-  return full;
-}
-window.__buildPublishHtml__ = buildPublishHtml;
-window.__STATE__ = STATE;
+/* ---------- server sync plumbing ---------- */
+var API_STATE_URL = 'api/state';
+var STATE = null;
+var STATE_VERSION = 0;
+window.__STATE__ = null;
 
 /* ---------- small utils ---------- */
 function deepClone(o){ return JSON.parse(JSON.stringify(o)); }
@@ -501,8 +478,6 @@ var MONTH = lsGet('ofc_month', currentMonthStr());
 var ACTIVE_TAB = lsGet('ofc_tab', 'dashboard');
 var THEME = lsGet('ofc_theme', 'system');
 var READONLY = false;
-var ARTIFACT_NS = null;
-var ARTIFACT_STATUS = 'unknown';
 var dirty = false;
 var publishing = false;
 var publishTimer = null;
@@ -587,13 +562,19 @@ function queuePublish(){
 function setSyncBadge(s){ syncBadgeState = s; renderSyncBadge(); }
 function flushPublish(){
   if (!dirty || publishing) return;
-  if (ARTIFACT_STATUS === 'unavailable') { setSyncBadge('local'); return; }
-  if (ARTIFACT_STATUS === 'readonly') { setSyncBadge('readonly'); return; }
-  if (!ARTIFACT_NS) { setSyncBadge('local'); return; }
   publishing = true;
   setSyncBadge('saving');
-  var html = buildPublishHtml(STATE);
-  ARTIFACT_NS.publish(html).then(function(){
+  fetch(API_STATE_URL, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({state: STATE, version: STATE_VERSION})
+  }).then(function(r){
+    if (r.status === 401 || r.status === 403) { var e = new Error('auth'); e.code = 'auth'; throw e; }
+    if (r.status === 409) { var e2 = new Error('conflict'); e2.code = 'conflict'; e2.body = r.json(); throw e2; }
+    if (!r.ok) { var e3 = new Error('upstream'); e3.code = 'upstream_error'; throw e3; }
+    return r.json();
+  }).then(function(d){
+    STATE_VERSION = d.version;
     dirty = false;
     publishing = false;
     setSyncBadge('saved');
@@ -601,23 +582,32 @@ function flushPublish(){
     publishing = false;
     var code = e && e.code;
     if (code === 'conflict') {
-      setSyncBadge('saving'); /* the shell reloads this view to the winning version */
-    } else if (code === 'not_writer' || code === 'not_granted' || code === 'not_declared' ||
-               code === 'capability_disabled' || code === 'capability_removed') {
-      ARTIFACT_STATUS = 'readonly'; READONLY = true;
+      Promise.resolve(e.body).then(function(d){
+        STATE = d.state; STATE_VERSION = d.version; window.__STATE__ = STATE;
+        dirty = false;
+        showToast('Carol/Henrique salvou uma alteração ao mesmo tempo — a tela foi atualizada com a versão mais recente.', true);
+        setSyncBadge('saved');
+        renderApp();
+      });
+    } else if (code === 'auth') {
+      READONLY = true;
       setSyncBadge('readonly');
-      showToast('Você está vendo este link em modo somente leitura.', true);
+      showToast('Sessão não autenticada — recarregue a página e faça login novamente.', true);
       renderApp();
-    } else if (code === 'rate_limited') {
-      setSyncBadge('pending');
-    } else if (code === 'upstream_error') {
-      setSyncBadge('pending');
-      setTimeout(flushPublish, 1200 + Math.random() * 800);
     } else {
       setSyncBadge('pending');
       showToast('Não foi possível salvar agora. Toque em "tentar novamente".', true);
     }
   });
+}
+function pollState(){
+  if (dirty || publishing) return;
+  fetch(API_STATE_URL).then(function(r){ return r.ok ? r.json() : null; }).then(function(d){
+    if (!d || d.version === STATE_VERSION) return;
+    STATE = d.state; STATE_VERSION = d.version; window.__STATE__ = STATE;
+    setSyncBadge('saved');
+    renderApp();
+  }).catch(function(){ /* ignore transient poll failures */ });
 }
 
 /* ---------- toasts ---------- */
@@ -680,12 +670,11 @@ function renderSyncBadge(){
   var el = document.getElementById('topbar-actions');
   if (!el) return;
   var map = {
-    idle: {label:'—', cls:''},
+    idle: {label:'Carregando...', cls:''},
     saved: {label:'Salvo', cls:'good-text'},
     saving: {label:'Salvando...', cls:''},
     pending: {label:'Alterações pendentes', cls:'critical-text'},
-    local: {label:'Modo local (sem link ativo)', cls:'critical-text'},
-    readonly: {label:'Somente leitura', cls:''}
+    readonly: {label:'Não foi possível autenticar', cls:'critical-text'}
   };
   var s = map[syncBadgeState] || map.idle;
   var retryBtn = (syncBadgeState === 'pending') ? '<button class="btn btn-sm" data-act="retry-publish" type="button">Tentar novamente</button>' : '';
@@ -1018,17 +1007,22 @@ document.addEventListener('change', function(e){
 
 /* ================= INIT ================= */
 function init(){
-  renderApp();
-  if (window.claude && window.claude.use) {
-    window.claude.use('artifact').then(function(ns){
-      ARTIFACT_NS = ns;
-      ARTIFACT_STATUS = ns ? 'ok' : 'unavailable';
-      setSyncBadge(ns ? 'saved' : 'local');
-    }).catch(function(){ ARTIFACT_STATUS = 'unavailable'; setSyncBadge('local'); });
-  } else {
-    ARTIFACT_STATUS = 'unavailable';
-    setSyncBadge('local');
-  }
+  document.getElementById('app').innerHTML = '<div class="empty">Carregando…</div>';
+  fetch(API_STATE_URL).then(function(r){
+    if (r.status === 401 || r.status === 403) { var e = new Error('auth'); e.code = 'auth'; throw e; }
+    if (!r.ok) throw new Error('load_failed');
+    return r.json();
+  }).then(function(d){
+    STATE = d.state; STATE_VERSION = d.version; window.__STATE__ = STATE;
+    renderApp();
+    setSyncBadge('saved');
+    setInterval(pollState, 6000);
+  }).catch(function(e){
+    console.error('cowhand init failed:', e);
+    if (e && e.code === 'auth') { READONLY = true; }
+    document.getElementById('app').innerHTML = '<div class="empty"><div class="big">⚠️</div>Não foi possível carregar os dados. Recarregue a página.</div>';
+    setSyncBadge('pending');
+  });
 }
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
 else init();
@@ -1069,8 +1063,6 @@ CORE = r'''<!doctype html>
 <nav id="mobiletabs"></nav>
 <div id="modal-root"></div>
 <div class="toast-wrap" id="toast-wrap"></div>
-<script id="app-state" type="application/json">__APP_STATE_JSON__</script>
-<script id="tpl" type="text/plain">__TPL_SELF__</script>
 <script>__APP_JS__</script>
 </body>
 </html>'''
@@ -1078,11 +1070,9 @@ CORE = r'''<!doctype html>
 # =====================================================================================
 # BUILD
 # =====================================================================================
-def escape_script_close(text):
-    return re.sub(r'</script', lambda m: '<\\/script', text, flags=re.IGNORECASE)
-
-def build_final(core_src, initial_state):
-    # bake in static taxonomy + CSS + JS (never republished separately; captured whole in tpl)
+def build_final(core_src):
+    # bake in static taxonomy + CSS + JS. index.html no longer embeds any state —
+    # state lives server-side and is fetched/saved via /api/state (see server.js).
     src = core_src.replace('__APP_CSS__', CSS, 1)
     js = APP_JS
     js = js.replace('__CATEGORIAS_JSON__', json.dumps(CATEGORIAS, ensure_ascii=False))
@@ -1092,33 +1082,17 @@ def build_final(core_src, initial_state):
     js = js.replace('__FORMA_PGTO_OPTS_JSON__', json.dumps(FORMA_PGTO_OPTS, ensure_ascii=False))
     js = js.replace('__STATUS_OPTS_JSON__', json.dumps(STATUS_OPTS, ensure_ascii=False))
     src = src.replace('__APP_JS__', js, 1)
+    return src
 
-    raw_escaped = escape_script_close(src)
-    final = src.replace('__TPL_SELF__', raw_escaped, 1)
-    state_json_escaped = escape_script_close(json.dumps(initial_state, ensure_ascii=False))
-    final = final.replace('__APP_STATE_JSON__', state_json_escaped, 1)
-    return final
+final_html = build_final(CORE)
 
-final_html = build_final(CORE, INITIAL_STATE)
-
-# Safety audit on the fully-assembled pre-state source (CSS+JS baked in, before __TPL_SELF__/
-# __APP_STATE_JSON__ substitution): must contain EXACTLY 3 unescaped "</script" occurrences -
-# the 3 real top-level tag closings (app-state, tpl, main script).
-_audit_src = CORE.replace('__APP_CSS__', CSS, 1)
-_audit_js = APP_JS
-for _tok, _val in [
-    ('__CATEGORIAS_JSON__', CATEGORIAS), ('__SUBCATEGORIAS_JSON__', SUBCATEGORIAS),
-    ('__RESPONSAVEL_OPTS_JSON__', RESPONSAVEL_OPTS), ('__TIPO_OPTS_JSON__', TIPO_OPTS),
-    ('__FORMA_PGTO_OPTS_JSON__', FORMA_PGTO_OPTS), ('__STATUS_OPTS_JSON__', STATUS_OPTS),
-]:
-    _audit_js = _audit_js.replace(_tok, json.dumps(_val, ensure_ascii=False))
-_audit_src = _audit_src.replace('__APP_JS__', _audit_js, 1)
-raw_count = len(re.findall(r'</script', _audit_src, flags=re.IGNORECASE))
-if raw_count != 3:
-    raise SystemExit(f"AUDIT FAILED: assembled source has {raw_count} unescaped '</script' occurrences, expected exactly 3.")
-print("Audit OK: exactly 3 real top-level </script> closings.")
-
-OUT_PATH = '/home/claude/orcamento_app/index.html'
+OUT_DIR = os.path.dirname(os.path.abspath(__file__))
+OUT_PATH = os.path.join(OUT_DIR, 'index.html')
 with open(OUT_PATH, 'w', encoding='utf-8') as f:
     f.write(final_html)
 print("Written", OUT_PATH, "length:", len(final_html))
+
+SEED_PATH = os.path.join(OUT_DIR, 'seed_data.json')
+with open(SEED_PATH, 'w', encoding='utf-8') as f:
+    json.dump(INITIAL_STATE, f, ensure_ascii=False, indent=2)
+print("Written", SEED_PATH)
