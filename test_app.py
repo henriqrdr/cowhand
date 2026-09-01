@@ -208,6 +208,28 @@ async def main():
             assert len(condominio_tx) == 1 and condominio_tx[0]["valor"] == 600 and condominio_tx[0]["status"] == "Pago", condominio_tx
             print("OK: '+ Lançar' pre-fills and creates a transação from the recorrente")
 
+            # version-conflict retry: a save that arrives mid-flight (from "another device", here
+            # simulated as a raw fetch on the same session) must NOT cause our own pending edit to
+            # be silently dropped in favor of theirs — it should be replayed on top and retried
+            lancar_btn2 = page.locator('tr', has_text='Gás').locator('[data-act="rec-lancar"]')
+            await lancar_btn2.click()
+            await page.wait_for_selector('#tx-form')
+            await page.click('#tx-form button[type="submit"]')
+            # race a concurrent write in before our 700ms debounced publish fires
+            await page.evaluate("""async () => {
+                const r = await fetch('/api/state');
+                const d = await r.json();
+                d.state.renda.henrique = 12345;
+                await fetch('/api/state', {method: 'PUT', headers: {'Content-Type': 'application/json'},
+                                            body: JSON.stringify({state: d.state, version: d.version})});
+            }""")
+            await page.wait_for_timeout(2500)  # debounce -> 409 -> replay -> debounce -> save
+            state_conflict = await page.evaluate("window.__STATE__")
+            assert state_conflict["renda"]["henrique"] == 12345, state_conflict["renda"]  # concurrent edit landed
+            gas_tx = [t for t in state_conflict["transacoes"] if t["descricao"] == "Gás encanado"]
+            assert len(gas_tx) == 1, gas_tx  # our edit survived the conflict instead of being dropped
+            print("OK: a version conflict mid-save reapplies the pending edit instead of discarding it")
+
             # metas tab: set alvo for m1 and check contribuição do mês
             await page.click('[data-act="nav"][data-tab="metas"]')
             await page.wait_for_timeout(50)
@@ -252,7 +274,7 @@ async def main():
             await login(page2, USER, PASS)
             await page2.wait_for_function("window.__STATE__ !== null", timeout=5000)
             state2 = await page2.evaluate("window.__STATE__")
-            assert len(state2["transacoes"]) == 15
+            assert len(state2["transacoes"]) == 16
             print("OK: second browser context (simulating Carol, own session) sees the same synced state")
             await context2.close()
 
@@ -264,7 +286,10 @@ async def main():
             assert "/login" in page.url, page.url
             print("OK: logout destroys the session — revisiting the app redirects to /login again")
 
-            real_errors = [e for e in errors if 'net::ERR' not in e]
+            # 409 is expected noise here: we deliberately provoked a version conflict above to
+            # test the replay-on-conflict path, and Chrome logs a console.error for any non-2xx
+            # fetch response regardless of whether the app itself handles it (which it did).
+            real_errors = [e for e in errors if 'net::ERR' not in e and '409' not in e]
             assert not real_errors, real_errors
             print("\nALL CHECKS PASSED")
             await browser.close()

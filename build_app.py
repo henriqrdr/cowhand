@@ -549,7 +549,13 @@ function dashboardData(){
   return {rendaConjunta:rendaConjunta, gastoTotal:gastoTotal, aportes:aportes, saldo:saldo, taxa:taxa, catList:catList, byResp:byResp, grp:grp, txs:txs};
 }
 
-/* ---------- mutation + publish pipeline ---------- */
+/* ---------- mutation + publish pipeline ----------
+ * pendingMutators keeps every mutator since the last successful save. If a save hits a
+ * version conflict (someone else saved first), we don't just adopt their state and drop
+ * ours — we replay our own pending mutators on top of the fresh server state and retry.
+ * Losing an edit the user just made (e.g. clicking "+ Lançar") silently is worse than a
+ * brief extra round-trip. */
+var pendingMutators = [];
 function mutate(mutator){
   if (READONLY) { showToast('Este link está em modo somente leitura.', true); return; }
   var next = deepClone(STATE);
@@ -557,6 +563,7 @@ function mutate(mutator){
   next.updatedAt = new Date().toISOString();
   STATE = next;
   window.__STATE__ = STATE;
+  pendingMutators.push(mutator);
   dirty = true;
   renderApp();
   queuePublish();
@@ -582,6 +589,7 @@ function flushPublish(){
   }).then(function(d){
     STATE_VERSION = d.version;
     dirty = false;
+    pendingMutators = [];
     publishing = false;
     setSyncBadge('saved');
   }).catch(function(e){
@@ -589,11 +597,13 @@ function flushPublish(){
     var code = e && e.code;
     if (code === 'conflict') {
       Promise.resolve(e.body).then(function(d){
-        STATE = d.state; STATE_VERSION = d.version; window.__STATE__ = STATE;
-        dirty = false;
-        showToast('Carol/Henrique salvou uma alteração ao mesmo tempo — a tela foi atualizada com a versão mais recente.', true);
-        setSyncBadge('saved');
+        var rebuilt = deepClone(d.state);
+        pendingMutators.forEach(function(fn){ fn(rebuilt); });
+        rebuilt.updatedAt = new Date().toISOString();
+        STATE = rebuilt; STATE_VERSION = d.version; window.__STATE__ = STATE;
         renderApp();
+        showToast('Carol/Henrique salvou uma alteração ao mesmo tempo — sua edição foi reaplicada por cima.', false);
+        queuePublish(); // retry the save with the rebuilt state
       });
     } else if (code === 'auth') {
       location.href = '/login';
