@@ -157,6 +157,18 @@ async def main():
             assert dates == ['2026-%02d-05' % m for m in range(9, 13)] + ['2027-%02d-05' % m for m in range(1, 7)], dates
             print("OK: parcela 3/12 auto-generated 4/12..12/12 in the following months, scheduled")
 
+            # the parcela fraction (e.g. "4/12") should be visible in the Lançamentos list itself,
+            # not just stored invisibly on the transaction
+            await page.fill('#month-input', '2026-10')
+            await page.dispatch_event('#month-input', 'change')
+            await page.wait_for_timeout(50)
+            outubro_text = await page.inner_text("#app")
+            assert "4/12" in outubro_text, outubro_text[:800]
+            print("OK: parcela fraction (4/12) shown in the Lançamentos list for the generated entry")
+            await page.fill('#month-input', '2026-08')
+            await page.dispatch_event('#month-input', 'change')
+            await page.wait_for_timeout(50)
+
             badge_text = await page.inner_text('#topbar-actions')
             assert 'salvo' in badge_text.lower(), badge_text
             print("OK: sync badge shows saved after publish:", badge_text)

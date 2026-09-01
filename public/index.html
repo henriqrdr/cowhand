@@ -651,7 +651,9 @@ function renderLancamentos(){
   var rows = txs.length ? txs.map(function(t){
     return '<tr>' +
       '<td>' + fmtDate(t.data) + '</td>' +
-      '<td>' + escapeHtml(t.descricao) + '<div style="font-size:11.5px;color:var(--text-muted)">' + escapeHtml(t.categoria) + (t.subcategoria ? ' · ' + escapeHtml(t.subcategoria) : '') + '</div></td>' +
+      '<td>' + escapeHtml(t.descricao) +
+        (t.parcela ? ' <span class="mono" style="font-size:11.5px;color:var(--text-muted);background:var(--surface-2);border-radius:5px;padding:1px 6px">' + escapeHtml(t.parcela) + '</span>' : '') +
+        '<div style="font-size:11.5px;color:var(--text-muted)">' + escapeHtml(t.categoria) + (t.subcategoria ? ' · ' + escapeHtml(t.subcategoria) : '') + '</div></td>' +
       '<td><span class="badge badge-' + escapeHtml((t.responsavel || '').toLowerCase()) + '">' + escapeHtml(t.responsavel || '-') + '</span></td>' +
       '<td>' + escapeHtml(t.formaPagamento || '-') + '</td>' +
       '<td><span class="badge badge-' + escapeHtml((t.status || '').toLowerCase()) + '">' + escapeHtml(t.status || '-') + '</span></td>' +
