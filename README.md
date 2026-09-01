@@ -141,6 +141,15 @@ cp cowhand-AAAAMMDD-HHMMSS.sqlite "$(docker volume inspect cowhand_cowhand_data 
 docker compose start cowhand
 ```
 
+## Parcelas automáticas
+
+Um lançamento novo com Tipo = "Recorrente Parcelado" e Parcela no formato `N/M` (ex:
+`3/12`) gera automaticamente as parcelas `N+1/M` até `M/M` nos meses seguintes (mesma
+descrição/categoria/valor, data avançando um mês por vez), com status "Agendado" —
+só a parcela digitada mantém o status escolhido no formulário. Isso só acontece ao
+**criar** o lançamento, não ao editar um já existente (evita duplicar a série). Cada
+parcela gerada é um lançamento independente — editar ou excluir uma não afeta as outras.
+
 ## Estrutura dos dados
 
 Categorias, subcategorias e as 27 despesas recorrentes/cartão estão definidas no topo

@@ -437,6 +437,17 @@ function fmtDate(d){
   if (p.length !== 3) return d;
   return p[2] + '/' + p[1] + '/' + p[0];
 }
+// adds n calendar months to a 'YYYY-MM-DD' string, clamping the day if the target month
+// is shorter (e.g. 31 jan + 1 mês -> 28/29 fev, não "3 de março")
+function addMonthsToDate(d, n){
+  var p = (d || '').split('-');
+  if (p.length !== 3) return d;
+  var y = parseInt(p[0], 10), m = parseInt(p[1], 10) - 1, day = parseInt(p[2], 10);
+  var target = new Date(y, m + n, 1);
+  var lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+  target.setDate(Math.min(day, lastDay));
+  return target.getFullYear() + '-' + String(target.getMonth() + 1).padStart(2, '0') + '-' + String(target.getDate()).padStart(2, '0');
+}
 function currentMonthStr(){
   var d = new Date();
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
@@ -832,6 +843,26 @@ function openTxModal(tx){
       tipo: fd.get('tipo'), status: fd.get('status') || 'Pago', parcela: fd.get('parcela') || '',
       valor: Number(fd.get('valor')) || 0
     };
+    var futureParcelas = null;
+    if (!editingTxId && payload.tipo === 'Recorrente Parcelado') {
+      var parcelaMatch = /^\s*(\d+)\s*\/\s*(\d+)\s*$/.exec(payload.parcela);
+      if (parcelaMatch) {
+        var atual = parseInt(parcelaMatch[1], 10);
+        var total = parseInt(parcelaMatch[2], 10);
+        if (atual > 0 && total > atual) {
+          futureParcelas = [];
+          for (var n = atual + 1; n <= total; n++) {
+            futureParcelas.push(Object.assign({}, payload, {
+              id: uid('tx'),
+              data: addMonthsToDate(payload.data, n - atual),
+              parcela: n + '/' + total,
+              // a parcela atual pode já estar paga; as futuras ainda não venceram
+              status: 'Agendado'
+            }));
+          }
+        }
+      }
+    }
     mutate(function(next){
       if (editingTxId) {
         var idx = next.transacoes.findIndex(function(t){ return t.id === editingTxId; });
@@ -839,10 +870,13 @@ function openTxModal(tx){
       } else {
         payload.id = uid('tx');
         next.transacoes.push(payload);
+        if (futureParcelas) futureParcelas.forEach(function(t){ next.transacoes.push(t); });
       }
     });
     closeModal();
-    showToast('Lançamento salvo.');
+    showToast(futureParcelas ?
+      'Lançamento salvo. +' + futureParcelas.length + ' parcela(s) futura(s) criada(s) até ' + futureParcelas[futureParcelas.length - 1].parcela + '.' :
+      'Lançamento salvo.');
   });
 }
 

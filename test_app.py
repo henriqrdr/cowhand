@@ -51,6 +51,8 @@ async def fill_tx_form(page, data):
         await page.select_option('select[name="formaPagamento"]', data['formaPagamento'])
     await page.select_option('select[name="responsavel"]', data['responsavel'])
     await page.select_option('select[name="tipo"]', data['tipo'])
+    if data.get('parcela'):
+        await page.fill('input[name="parcela"]', data['parcela'])
     await page.click('#tx-form button[type="submit"]')
 
 
@@ -136,6 +138,25 @@ async def main():
             assert len(state1["transacoes"]) == 4, state1["transacoes"]
             print("OK: 4 transactions added, client state has them")
 
+            # "Recorrente Parcelado" with parcela 3/12 should auto-create parcelas 4/12..12/12
+            # in the following months (scheduled, not yet paid), not just the one entered
+            await fill_tx_form(page, dict(
+                data='2026-09-05', valor='89.90', descricao='Aliexpress - Impressora',
+                categoria='Lazer & Recreação', subcategoria='App/Ferramenta de Trabalho', formaPagamento='Pix',
+                responsavel='Ambos', tipo='Recorrente Parcelado', parcela='3/12'))
+            await page.wait_for_timeout(900)
+            state_parcelas = await page.evaluate("window.__STATE__")
+            parceladas = [t for t in state_parcelas["transacoes"] if t["descricao"] == "Aliexpress - Impressora"]
+            assert len(parceladas) == 10, parceladas  # the 3/12 entered + 4/12..12/12 generated
+            parcela_nums = sorted(int(t["parcela"].split("/")[0]) for t in parceladas)
+            assert parcela_nums == list(range(3, 13)), parcela_nums
+            futuras = [t for t in parceladas if t["parcela"] != "3/12"]
+            assert all(t["status"] == "Agendado" for t in futuras), futuras
+            assert all(t["valor"] == 89.90 for t in parceladas), parceladas
+            dates = sorted(t["data"] for t in parceladas)
+            assert dates == ['2026-%02d-05' % m for m in range(9, 13)] + ['2027-%02d-05' % m for m in range(1, 7)], dates
+            print("OK: parcela 3/12 auto-generated 4/12..12/12 in the following months, scheduled")
+
             badge_text = await page.inner_text('#topbar-actions')
             assert 'salvo' in badge_text.lower(), badge_text
             print("OK: sync badge shows saved after publish:", badge_text)
@@ -144,7 +165,7 @@ async def main():
             await page.goto(BASE_URL)
             await page.wait_for_function("window.__STATE__ !== null", timeout=5000)
             state_reloaded = await page.evaluate("window.__STATE__")
-            assert len(state_reloaded["transacoes"]) == 4, state_reloaded["transacoes"]
+            assert len(state_reloaded["transacoes"]) == 14, state_reloaded["transacoes"]
             descs = [t["descricao"] for t in state_reloaded["transacoes"]]
             assert any("</script>" in d for d in descs), descs
             print("OK: server round trip preserved all transactions incl. adversarial </script> substring")
@@ -201,7 +222,7 @@ async def main():
             await login(page2, USER, PASS)
             await page2.wait_for_function("window.__STATE__ !== null", timeout=5000)
             state2 = await page2.evaluate("window.__STATE__")
-            assert len(state2["transacoes"]) == 4
+            assert len(state2["transacoes"]) == 14
             print("OK: second browser context (simulating Carol, own session) sees the same synced state")
             await context2.close()
 
