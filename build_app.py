@@ -834,7 +834,7 @@ function txFormHtml(tx){
 }
 function openTxModal(tx){
   editingTxId = tx ? tx.id : null;
-  openModal(tx ? 'Editar lançamento' : 'Novo lançamento', txFormHtml(tx));
+  openModal(editingTxId ? 'Editar lançamento' : 'Novo lançamento', txFormHtml(tx));
   document.getElementById('tx-form').addEventListener('submit', function(e){
     e.preventDefault();
     var fd = new FormData(e.target);
@@ -899,14 +899,17 @@ function renderRecorrentes(){
         '<input type="number" step="0.01" min="0" class="num" style="width:110px" data-act="rec-esperado" data-id="' + escapeHtml(rec.id) + '" value="' + esperado + '">') + '</td>' +
       '<td class="num">' + fmtMoney(real) + '</td>' +
       '<td class="num ' + diffCls + '">' + (diff > 0 ? '+' : '') + fmtMoney(diff) + '</td>' +
+      '<td>' + ((!READONLY && real === 0) ?
+        '<button class="btn btn-sm" data-act="rec-lancar" data-id="' + escapeHtml(rec.id) + '" type="button">+ Lançar</button>' :
+        '') + '</td>' +
     '</tr>';
   }).join('');
   var html =
     '<h2 style="margin-bottom:2px">Despesas recorrentes &amp; cartão</h2>' +
-    '<p style="color:var(--text-muted);margin:0 0 16px;font-size:13px">' + escapeHtml(monthLabel(MONTH)) + ' — valor real calculado a partir dos lançamentos do mês.</p>' +
+    '<p style="color:var(--text-muted);margin:0 0 16px;font-size:13px">' + escapeHtml(monthLabel(MONTH)) + ' — valor real calculado a partir dos lançamentos do mês. Itens sem lançamento ainda mostram um atalho "+ Lançar" já preenchido.</p>' +
     renderReadonlyBanner() +
     '<div class="table-wrap"><table><thead><tr>' +
-      '<th>Item</th><th>Resp.</th><th>Forma</th><th style="text-align:right">Esperado</th><th style="text-align:right">Real do mês</th><th style="text-align:right">Diferença</th>' +
+      '<th>Item</th><th>Resp.</th><th>Forma</th><th style="text-align:right">Esperado</th><th style="text-align:right">Real do mês</th><th style="text-align:right">Diferença</th><th></th>' +
     '</tr></thead><tbody>' + rows + '</tbody></table></div>';
   document.getElementById('app').innerHTML = html;
 }
@@ -1001,6 +1004,23 @@ document.addEventListener('click', function(e){
     var id = el.getAttribute('data-id');
     var tx = STATE.transacoes.find(function(t){ return t.id === id; });
     if (tx) openTxModal(tx);
+  } else if (act === 'rec-lancar') {
+    var recId = el.getAttribute('data-id');
+    var rec = STATE.recorrentes.find(function(r){ return r.id === recId; });
+    if (rec) {
+      openTxModal({
+        data: MONTH + '-01',
+        descricao: rec.item,
+        categoria: rec.categoria,
+        subcategoria: rec.subcategoria,
+        formaPagamento: rec.forma || '',
+        responsavel: rec.responsavel,
+        tipo: rec.tipo,
+        status: 'Pago',
+        parcela: '',
+        valor: rec.valorEsperado != null ? rec.valorEsperado : ''
+      });
+    }
   } else if (act === 'tx-del') {
     var did = el.getAttribute('data-id');
     openConfirm('Excluir este lançamento? Esta ação não pode ser desfeita.', function(){

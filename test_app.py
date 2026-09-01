@@ -190,6 +190,24 @@ async def main():
             assert "R$\xa0300,00" in rec_text or "R$ 300,00" in rec_text, rec_text[:800]
             print("OK: recorrentes matching (Netflix via chave, Combustível via categoria+subcategoria) reflected")
 
+            # "+ Lançar" quick action: Condomínio has no transação yet this month, so the button
+            # should appear and pre-fill the form from the recorrente (categoria/valor esperado/etc)
+            lancar_btn = page.locator('tr', has_text='Condomínio').locator('[data-act="rec-lancar"]')
+            await lancar_btn.click()
+            await page.wait_for_selector('#tx-form')
+            modal_title = await page.inner_text('.modal-head h3')
+            assert modal_title == 'Novo lançamento', modal_title
+            prefilled_valor = await page.input_value('input[name="valor"]')
+            assert prefilled_valor == '600', prefilled_valor
+            prefilled_categoria = await page.eval_on_selector('select[name="categoria"]', 'el => el.value')
+            assert prefilled_categoria == 'Moradia', prefilled_categoria
+            await page.click('#tx-form button[type="submit"]')
+            await page.wait_for_timeout(900)
+            state_rec = await page.evaluate("window.__STATE__")
+            condominio_tx = [t for t in state_rec["transacoes"] if t["descricao"] == "Condomínio Apto 102"]
+            assert len(condominio_tx) == 1 and condominio_tx[0]["valor"] == 600 and condominio_tx[0]["status"] == "Pago", condominio_tx
+            print("OK: '+ Lançar' pre-fills and creates a transação from the recorrente")
+
             # metas tab: set alvo for m1 and check contribuição do mês
             await page.click('[data-act="nav"][data-tab="metas"]')
             await page.wait_for_timeout(50)
@@ -234,7 +252,7 @@ async def main():
             await login(page2, USER, PASS)
             await page2.wait_for_function("window.__STATE__ !== null", timeout=5000)
             state2 = await page2.evaluate("window.__STATE__")
-            assert len(state2["transacoes"]) == 14
+            assert len(state2["transacoes"]) == 15
             print("OK: second browser context (simulating Carol, own session) sees the same synced state")
             await context2.close()
 
