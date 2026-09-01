@@ -28,7 +28,7 @@ RESPONSAVEL_OPTS = ["Ele", "Ela", "Ambos"]
 TIPO_OPTS = ["Fixo", "Variável", "Recorrente Parcelado", "Investimento"]
 FORMA_PGTO_OPTS = [
     "Cartão C6 (Henrique)", "Cartão Santander (Carol)", "Cartão Renner (Carol)",
-    "Pix", "Débito Automático", "Boleto", "Dinheiro",
+    "Vale Alimentação (Carol)", "Pix", "Débito Automático", "Boleto", "Dinheiro",
 ]
 STATUS_OPTS = ["Pago", "Pendente", "Agendado"]
 
